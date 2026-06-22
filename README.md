@@ -4,9 +4,9 @@ Hackathon frontend - Consola operativa para gestión de Tropeles.
 
 ## Integrantes
 
-- Integrante A - Código
-- Integrante B - Código
-- Integrante C - Código
+- Ximena Gamero Goyzueta - 202510310
+- Luana Yolanda Meniz Cueva - 202510593
+- Alondra Solange Obregon Carhuavilca - 202510394
 
 ## Instalación
 

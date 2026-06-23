@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getSignal, updateSignalStatus } from '../api/signals'
+import { useFeed } from '../hooks/useFeed'
 import type { Signal } from '../types/api'
 
 export function SignalDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { state, setState } = useFeed()
   const [signal, setSignal] = useState<Signal | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -35,6 +37,9 @@ export function SignalDetail() {
       setSignal(updated)
       setConfirmMsg(`Estado actualizado a ${status}`)
       setTimeout(() => setConfirmMsg(''), 3000)
+
+      // Sincronizar el feed cacheado para que al volver se vea el cambio
+      setState({ items: state.items.map((s) => (s.id === updated.id ? updated : s)) })
     } catch {
       setUpdateError('Error al actualizar. Intente nuevamente.')
     } finally {

@@ -38,7 +38,7 @@ export function Layout() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-400">{operator?.name}</span>
+            <span className="text-sm text-slate-400">{operator?.displayName}</span>
             <button
               onClick={handleLogout}
               className="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded"

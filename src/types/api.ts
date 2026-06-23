@@ -20,9 +20,16 @@ export interface Operator {
 
 export interface DashboardSummary {
   totalTropels: number
-  activeSignals: number
-  criticalSignals: number
-  sectorsCount: number
+  criticalTropels: number
+  openSignals: number
+  sectorStabilityAvg: number
+  signalsBySeverity: {
+    LEVE: number
+    MODERADO: number
+    GRAVE: number
+    CRITICO: number
+  }
+  generatedAt: string
 }
 
 export interface Tropel {

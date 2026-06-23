@@ -19,7 +19,7 @@ npm install
 Crear archivo `.env` basado en `.env.example`:
 
 ```env
-VITE_API_BASE_URL=https://<backend-url>/api/v1
+VITE_API_BASE_URL=https://hackaton-20261-front-587720740455.us-east1.run.app/api/v1
 ```
 
 ## Comandos

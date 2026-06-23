@@ -6,14 +6,16 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string
-  operator: Operator
+  expiresAt: string
+  user: Operator
 }
 
 export interface Operator {
   id: string
-  name: string
+  displayName: string
   email: string
   teamCode: string
+  role: string
 }
 
 export interface DashboardSummary {

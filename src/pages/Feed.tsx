@@ -1,24 +1,22 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { getSignalFeed } from '../api/signals'
-import type { Signal } from '../types/api'
+import { useFeed } from '../hooks/useFeed'
 
 export function Feed() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [items, setItems] = useState<Signal[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [hasMore, setHasMore] = useState(true)
+  const { state, setState, resetState } = useFeed()
+  const loadingRef = useRef(false)
+  const restoredRef = useRef(false)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const loadingRef = useRef(false)
-  const [initialLoading, setInitialLoading] = useState(true)
 
   const signalType = searchParams.get('signalType') ?? ''
   const severity = searchParams.get('severity') ?? ''
   const status = searchParams.get('status') ?? ''
   const q = searchParams.get('q') ?? ''
-
   const filterKey = `${signalType}|${severity}|${status}|${q}`
 
   const updateFilter = useCallback((key: string, value: string) => {
@@ -30,85 +28,103 @@ export function Feed() {
     })
   }, [setSearchParams])
 
+  // Carga inicial o por cambio de filtros (si ya hay data cacheada con el mismo filterKey, no refetch)
   useEffect(() => {
-    setItems([])
-    setNextCursor(null)
-    setHasMore(true)
-    setError('')
-    setInitialLoading(true)
-    loadingRef.current = false
+    if (state.filterKey === filterKey && state.items.length > 0) {
+      restoredRef.current = false
+      return
+    }
 
+    resetState(filterKey)
     let cancelled = false
     setLoading(true)
-    getSignalFeed({ limit: 15, signalType: signalType || undefined, severity: severity || undefined, status: status || undefined, q: q || undefined })
+    setError('')
+
+    getSignalFeed({
+      limit: 15,
+      signalType: signalType || undefined,
+      severity: severity || undefined,
+      status: status || undefined,
+      q: q || undefined,
+    })
       .then((res) => {
         if (cancelled) return
-        setItems(res.items)
-        setNextCursor(res.nextCursor)
-        setHasMore(res.hasMore)
+        setState({ items: res.items, nextCursor: res.nextCursor, hasMore: res.hasMore, filterKey })
       })
       .catch(() => {
-        if (cancelled) return
-        setError('Error al cargar señales')
+        if (!cancelled) setError('Error al cargar señales')
       })
       .finally(() => {
-        if (cancelled) return
-        setLoading(false)
-        setInitialLoading(false)
+        if (!cancelled) setLoading(false)
       })
 
     return () => { cancelled = true }
   }, [filterKey])
 
   const loadMore = useCallback(() => {
-    if (loadingRef.current || !hasMore || !nextCursor) return
+    if (loadingRef.current || !state.hasMore || !state.nextCursor) return
+    if (state.filterKey !== filterKey) return
+
     loadingRef.current = true
     setLoading(true)
+    const requestFilterKey = filterKey
 
-    let cancelled = false
-    getSignalFeed({ cursor: nextCursor, limit: 15, signalType: signalType || undefined, severity: severity || undefined, status: status || undefined, q: q || undefined })
+    getSignalFeed({
+      cursor: state.nextCursor,
+      limit: 15,
+      signalType: signalType || undefined,
+      severity: severity || undefined,
+      status: status || undefined,
+      q: q || undefined,
+    })
       .then((res) => {
-        if (cancelled) return
-        setItems((prev) => {
-          const existingIds = new Set(prev.map((s) => s.id))
+        // Si los filtros cambiaron mientras la request estaba en vuelo, descartar el resultado
+        if (requestFilterKey !== filterKey) return
+        setState((prevLike => {
+          const existingIds = new Set(state.items.map((s) => s.id))
           const newItems = res.items.filter((s) => !existingIds.has(s.id))
-          return [...prev, ...newItems]
-        })
-        setNextCursor(res.nextCursor)
-        setHasMore(res.hasMore)
+          return { items: [...state.items, ...newItems], nextCursor: res.nextCursor, hasMore: res.hasMore }
+        })())
       })
       .catch(() => {
-        if (cancelled) return
         setError('Error al cargar más señales')
       })
       .finally(() => {
-        if (cancelled) return
         setLoading(false)
         loadingRef.current = false
       })
-
-    return () => { cancelled = true }
-  }, [nextCursor, hasMore, signalType, severity, status, q])
+  }, [state.nextCursor, state.hasMore, state.filterKey, state.items, filterKey, signalType, severity, status, q, setState])
 
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const sentinelRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (observerRef.current) observerRef.current.disconnect()
-      if (!node) return
-      observerRef.current = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting && hasMore && !loadingRef.current) {
-            loadMore()
-          }
-        },
-        { rootMargin: '200px' },
-      )
-      observerRef.current.observe(node)
-    },
-    [loadMore, hasMore],
-  )
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) observerRef.current.disconnect()
+    if (!node) return
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && state.hasMore && !loadingRef.current) {
+          loadMore()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observerRef.current.observe(node)
+  }, [loadMore, state.hasMore])
 
-  if (initialLoading) {
+  // Restaurar posición de scroll al volver del detalle (solo una vez por montaje)
+  useLayoutEffect(() => {
+    if (restoredRef.current) return
+    if (state.items.length > 0 && state.scrollY > 0) {
+      window.scrollTo(0, state.scrollY)
+    }
+    restoredRef.current = true
+  }, [state.items.length, state.scrollY])
+
+  const openDetail = (id: string) => {
+    setState({ scrollY: window.scrollY })
+    navigate(`/feed/${id}`)
+  }
+
+  if (loading && state.items.length === 0) {
     return <div className="text-slate-400 py-8 text-center">Cargando señales...</div>
   }
 
@@ -156,19 +172,22 @@ export function Feed() {
         </select>
       </div>
 
-      {error && !loading && items.length === 0 && (
+      {error && state.items.length === 0 && (
         <div className="text-red-400 py-8 text-center">{error}</div>
       )}
-
-      {error && items.length > 0 && (
+      {error && state.items.length > 0 && (
         <div className="text-yellow-400 text-sm mb-2">{error}</div>
       )}
 
+      {!loading && !error && state.items.length === 0 && (
+        <div className="text-slate-500 py-8 text-center">Sin resultados</div>
+      )}
+
       <div className="space-y-2">
-        {items.map((signal) => (
+        {state.items.map((signal) => (
           <div
             key={signal.id}
-            onClick={() => navigate(`/feed/${signal.id}`)}
+            onClick={() => openDetail(signal.id)}
             className="bg-slate-800 border border-slate-700 rounded-lg p-4 cursor-pointer hover:border-cyan-700 transition-colors"
           >
             <div className="flex items-start justify-between">
@@ -198,15 +217,13 @@ export function Feed() {
         ))}
       </div>
 
-      {loading && items.length > 0 && (
+      {loading && state.items.length > 0 && (
         <div className="text-slate-500 text-center py-4">Cargando más...</div>
       )}
-
-      {!hasMore && items.length > 0 && (
+      {!state.hasMore && state.items.length > 0 && (
         <div className="text-slate-500 text-center py-4 text-sm">No hay más señales</div>
       )}
-
-      {hasMore && !loading && <div ref={sentinelRef} className="h-4" />}
+      {state.hasMore && !loading && <div ref={sentinelRef} className="h-4" />}
     </div>
   )
 }

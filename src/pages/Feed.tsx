@@ -80,11 +80,9 @@ export function Feed() {
       .then((res) => {
         // Si los filtros cambiaron mientras la request estaba en vuelo, descartar el resultado
         if (requestFilterKey !== filterKey) return
-        setState((prevLike => {
-          const existingIds = new Set(state.items.map((s) => s.id))
-          const newItems = res.items.filter((s) => !existingIds.has(s.id))
-          return { items: [...state.items, ...newItems], nextCursor: res.nextCursor, hasMore: res.hasMore }
-        })())
+        const existingIds = new Set(state.items.map((s) => s.id))
+        const newItems = res.items.filter((s) => !existingIds.has(s.id))
+        setState({ items: [...state.items, ...newItems], nextCursor: res.nextCursor, hasMore: res.hasMore })
       })
       .catch(() => {
         setError('Error al cargar más señales')

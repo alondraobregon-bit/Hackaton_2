@@ -2,8 +2,8 @@ import apiClient from './client'
 import type { Sector, SectorStory } from '../types/api'
 
 export async function getSectors(): Promise<Sector[]> {
-  const response = await apiClient.get<Sector[]>('/sectors')
-  return response.data
+  const response = await apiClient.get<{ items: Sector[] }>('/sectors')
+  return response.data.items
 }
 
 export async function getSectorStory(id: string): Promise<SectorStory> {

@@ -37,15 +37,30 @@ export function Sectors() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {sectors.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => goToStory(s.id)}
-              className="text-left bg-slate-800 border border-slate-700 rounded-lg p-5 hover:border-cyan-600 transition-colors"
-            >
-              <div className="font-medium text-cyan-300">{s.name}</div>
-              <div className="text-sm text-slate-400 mt-1">{s.description}</div>
-            </button>
-          ))}
+  <button
+    key={s.id}
+    onClick={() => goToStory(s.id)}
+    className="text-left bg-slate-800 border border-slate-700 rounded-lg p-5 hover:border-cyan-600 transition-colors"
+  >
+    <div className="flex items-center justify-between">
+      <div className="font-medium text-cyan-300">{s.name}</div>
+      <span className="text-xs text-slate-500">{s.sectorCode}</span>
+    </div>
+    <div className="text-sm text-slate-400 mt-1">{s.climate.replace('_', ' ')}</div>
+    <div className="text-xs text-slate-500 mt-2">
+      Carga: {s.currentLoad}/{s.capacity}
+    </div>
+    <div className="text-xs mt-1">
+      <span className="text-slate-500">Estabilidad: </span>
+      <span className={
+        s.stabilityLevel >= 70 ? 'text-green-400' :
+        s.stabilityLevel >= 50 ? 'text-yellow-400' : 'text-red-400'
+      }>
+        {s.stabilityLevel}%
+      </span>
+    </div>
+  </button>
+))}
         </div>
       )}
     </div>

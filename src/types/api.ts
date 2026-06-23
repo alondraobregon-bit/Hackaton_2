@@ -89,8 +89,12 @@ export interface SignalStatusUpdate {
 
 export interface Sector {
   id: string
+  sectorCode: string
   name: string
-  description: string
+  climate: string
+  capacity: number
+  currentLoad: number
+  stabilityLevel: number
 }
 
 export interface SectorStory {
